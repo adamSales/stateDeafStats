@@ -1,0 +1,116 @@
+library(readr) ## read in the csvs faster
+                                        #library(survey)
+library(dplyr)
+source('../generalCode/cumMean.r')
+states <- read.csv('../data/acs5yr2016/states.csv')
+
+
+### downloads, formats, saves 5-year data
+### ACS 2012-2016
+makeDes <- function(){
+
+## need: DEAR, attain, employment,PERNP, fulltime
+
+    sdat <- read_csv('../data/acs5yr2016/ss16pusa.csv')[,c('SERIALNO','DEAR','ST','AGEP','ADJINC','PERNP','SCHL','ESR','WKW','WKHP','PWGTP',paste0('PWGTP',1:80))]
+    for(nn in names(sdat)) if(is.character(sdat[[nn]])) sdat[[nn]] <- parse_integer(sdat[[nn]])
+    for(ll in letters[2:4]){
+        print(ll)
+        ndat <- read_csv(paste0('../data/acs5yr2016/ss16pus',ll,'.csv'))[,c('SERIALNO','DEAR','ST','AGEP','ADJINC','PERNP','SCHL','ESR','WKW','WKHP','PWGTP',paste0('PWGTP',1:80))]
+        for(nn in names(ndat)) if(is.character(ndat[[nn]])) ndat[[nn]] <- parse_integer(ndat[[nn]])
+        sdat <- rbind(sdat,ndat)
+        rm(ndat);gc()
+    }
+
+    hdat <- read_csv('../data/acs5yr2016/ss16husa.csv')[,c('SERIALNO','TYPE')]
+    for(ll in letters[2:4])
+        hdat <- rbind(hdat, read_csv(paste0('../data/acs5yr2016/ss16hus',ll,'.csv'))[,c('SERIALNO','TYPE')])
+
+    sdat$type <- hdat$TYPE[match(sdat$SERIALNO,hdat$SERIALNO)]; rm(hdat); gc()
+
+    sdat$adj <- sdat$ADJINC/1e6
+    sdat$PERNP <- sdat$PERNP*sdat$adj
+
+    sdat$state <- states$abb[match(sdat$ST,states$x)]
+
+    save(sdat,file='data/rankDataTot.RData')
+    sdat
+}
+
+### more data formatting
+### restricts data to ages 25-64 and excludes subjects in "institutional" housing
+makeVars <- function(sdat){
+    sdat <- sdat%>%filter(type!=2)%>%filter(AGEP<65)%>%filter(AGEP>=25)%>%
+        mutate(hs = SCHL>=16,
+               ba = SCHL>=21,
+               employed = ESR%in%c(1,2,4,5),
+               unemployed = ESR==3,
+               fulltime=(WKW==1 & WKHP>=35))
+#    sdat <- select(sdat,-ST,-AGEP,-ADJINC,-SCHL,-ESR,-WKW,-WKHP)
+
+    names(sdat) <- tolower(names(sdat))
+
+    sdat
+}
+
+## weighted mean
+svmean <- function(x,w,na.rm=TRUE){
+    w <- w/sum(w)
+    sum(x*w,na.rm=na.rm)
+}
+
+stateEst <- function(x,w,data,st,na.rm=TRUE){
+    data <- data[data$state==st,c(x,w,'dear')]
+    names(data) <- c('x','w','dear')
+    ## xO <- x[state!=st]
+    ## wO <- w[state!=st]
+    ## dearO <- dear[state!=st]
+
+    local <- with(data, list(
+#        overall=svmean(x,w),
+        deaf=svmean(x[dear==1],w[dear==1]),
+        hear=svmean(x[dear==2],w[dear==2])
+    ))
+    local <- within(local,gap <- deaf-hear)
+    return(unlist(local))
+    ## oth <- list(
+    ##     overall=svmean(xO,wO),
+    ##     deaf=svmean(xO[dearO==1],wO[dearO==1]),
+    ##     hear=svmean(xO[dearO==2],wO[dearO==2])
+    ## )
+    ## oth <- within(oth,gap <- deaf-hear)
+    ## c(unlist(local),diff=unlist(local)-unlist(oth))
+}
+
+tot1state <- function(x,st,data)
+    vapply(c('',1:80),
+           function(i) stateEst(x=x,w=paste0('pwgtp',i),data,st),
+           numeric(3))
+
+tot1var <- function(x,data)
+    vapply(c('DC',state.abb),function(st) tot1state(x,st,data),matrix(1.1,3,81))
+
+stateSEs <- function(t1v){
+    est <- t1v[,1,]
+    t1v <- t1v[,-1,]
+    dn <- dimnames(t1v)
+    out <- matrix(NA,nrow=dim(t1v)[3],ncol=dim(t1v)[1],dimnames=dn[c(3,1)])
+    for(vv in dn[[1]])
+        for(ss in dn[[3]])
+            out[ss,vv] <- sqrt(mean((t1v[vv,,ss]-est[vv,ss])^2)*4)
+    out
+}
+
+est1var <- function(x,sdat){
+    t1v <- tot1var(x,sdat)
+    se <- stateSEs(t1v)
+    out <- matrix(NA,nrow(se),ncol(se)*2)
+    rownames(out) <- rownames(se)
+    colnames(out) <- rep('',ncol(out))
+    for(i in 1:ncol(se)){
+        out[,2*i-1] <- t1v[1,1,]
+        colnames(out)[2*i-1] <- colnames(se)[i]
+        out[,2*i] <- se[,i]
+        colnames(out)[2*i] <- paste0(colnames(se)[i],'.','SE')
+    }
+    out
+}
