@@ -112,7 +112,7 @@ tot1state <- function(x,st='',data){
 ### for all 50 stats +DC+total
 ### returns 3x81x52 array
 tot1var <- function(x,data)
-    vapply(c('US','DC',state.abb),function(st) tot1state(x,st,data),matrix(1.1,3,81))
+    vapply(c('US','DC',state.abb,'PR'),function(st) tot1state(x,st,data),matrix(1.1,3,81))
 
 
 ### computes SEs from t1v
@@ -152,7 +152,7 @@ sampleSize1 <- function(st,data){
 }
 
 sampleSizeFunc <- function(data)
-    vapply(c('US','DC',state.abb),sampleSize1,data=data,1:2)
+    vapply(c('US','DC',state.abb,'PR'),sampleSize1,data=data,1:2)
 
 ## if you've already downloaded, cleaned, etc the data, start here:
 makeEstimates <- function(data){
