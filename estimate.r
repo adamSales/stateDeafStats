@@ -138,7 +138,7 @@ makeEstimates <- function(data){
         BA=est1var('ba',data),
         Unemployment=est1var('unemployed',data),
         `Total Employment`=est1var('employed',data),
-        `Sample Size`=sampleSizeFunc(data)
+        `Sample Size`=t(sampleSizeFunc(data))
     )
     l <- lapply(l,function(x) round(x*100,1))
     write.xlsx(l,'HS.BA.Unemployment.Employment.byState.xlsx',row.names=TRUE)
