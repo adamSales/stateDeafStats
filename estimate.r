@@ -5,7 +5,7 @@ library(dplyr)
 states <- read.csv('states.csv')
 
 
-### downloads, formats, saves 5-year data
+### reads in, formats, saves 5-year data
 ### ACS 2012-2016
 makeDes <- function(){
 
@@ -35,6 +35,29 @@ makeDes <- function(){
     save(sdat,file='../data/rankDataTot.RData')
     sdat
 }
+
+### reads in, formats, saves 5-year data
+### ACS 2012-2016 Puerto Rico
+makeDesPR <- function(){
+
+## need: DEAR, attain, employment,PERNP, fulltime
+
+    sdat <- read_csv('../../data/acs5yr2016/ss16ppr.csv')[,c('SERIALNO','DEAR','ST','AGEP','ADJINC','PERNP','SCHL','ESR','WKW','WKHP','PWGTP',paste0('PWGTP',1:80))]
+    for(nn in names(sdat)) if(is.character(sdat[[nn]])) sdat[[nn]] <- parse_integer(sdat[[nn]])
+
+    hdat <- read_csv('../../data/acs5yr2016/ss16hpr.csv')[,c('SERIALNO','TYPE')]
+
+    sdat$type <- hdat$TYPE[match(sdat$SERIALNO,hdat$SERIALNO)]; rm(hdat); gc()
+
+    sdat$adj <- sdat$ADJINC/1e6
+    sdat$PERNP <- sdat$PERNP*sdat$adj
+
+    sdat$state <- 'PR'
+
+    save(sdat,file='../data/rankDataPR.RData')
+    sdat
+}
+
 
 ### more data formatting
 ### restricts data to ages 25-64 and excludes subjects in "institutional" housing
@@ -148,6 +171,8 @@ makeEstimates <- function(data){
 ## otherwise this do
 everything <- function(){
     sdat <- makeDes()
+    sdatPR <- makeDesPR()
+    sdat <- rbind(sdat,sdatPR)
     sdat <- makeVars(sdat)
     makeEstimates(sdat)
 }
