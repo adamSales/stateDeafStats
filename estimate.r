@@ -176,3 +176,14 @@ everything <- function(){
     sdat <- makeVars(sdat)
     makeEstimates(sdat)
 }
+
+### if you want to re-run the analysis using saved datasets:
+savedData <- function(){
+    us <- load('../data/rankDataTot.RData')
+    assign('sdatUS',get(us))
+    pr <- load('../data/rankDataTot.RData')
+    assign('sdatPR',get(pr))
+    sdat <- rbind(sdatUS,sdatPR); rm(sdatUS,sdatPR); gc()
+    sdat <- makeVars(sdat)
+    makeEstimates(sdat)
+}
