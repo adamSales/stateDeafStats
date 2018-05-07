@@ -37,9 +37,11 @@ tot1state <- function(x,st='',data){
 ### for deaf, hearing and the gap
 ### for all 50 stats +DC+total
 ### returns 3x81x52 array
-tot1var <- function(x,data)
-    vapply(c('US','DC',state.abb,'PR'),function(st) tot1state(x,st,data),matrix(1.1,3,81))
-
+tot1var <- function(x,data,us=TRUE){
+    sts <- c('DC','PR',state.abb)
+    if(us) sts <- c('US',sts)
+    vapply(sts,function(st) tot1state(x,st,data),matrix(1.1,3,81))
+}
 
 ### computes SEs from t1v
 ### returns matrix 52x3
@@ -78,7 +80,7 @@ sampleSize1 <- function(st,data){
 }
 
 sampleSizeFunc <- function(data)
-    vapply(c('US','DC',state.abb,'PR'),sampleSize1,data=data,1:2)
+    vapply(c('US','DC','PR',state.abb),sampleSize1,data=data,1:2)
 
 ## if you've already downloaded, cleaned, etc the data, start here:
 makeEstimates <- function(data){

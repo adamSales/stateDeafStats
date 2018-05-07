@@ -1,4 +1,3 @@
-
 makeWeights <- function(sdat){
     deafWeights <- vapply(c('DC','PR',state.abb),
                           function(st)
@@ -50,7 +49,7 @@ stateDiff <- function(t1v,weights){
 }
 
 est1var <- function(x,sdat){
-    t1v <- tot1var(x,sdat)
+    t1v <- tot1var(x,sdat,us=FALSE)
     se <- stateSEs(t1v)
     out <- matrix(NA,nrow(se),ncol(se)*2)
     rownames(out) <- rownames(se)
@@ -67,13 +66,17 @@ est1var <- function(x,sdat){
 
 
 ### code to make first figure:
-complete <- function(x,sdat){
+complete <- function(sdat){
     weights <- makeWeights(sdat)
-    t1v <- tot1var(x,sdat)
-    diff <- stateDiff(t1v,weights)
-    ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss),numeric(3))
-    ps.Adj <- p.adjust(ps,method='holm')
-    cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5),`p-value (adjusted)`=round(ps.Adj['gap',],5))
+    l <- lapply(c('hs','ba','employed'),function(x){
+        t1v <- tot1var(x,sdat,us=FALSE)
+        diff <- stateDiff(t1v,weights)
+        ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss,weights),numeric(3))
+        ps.Adj <- p.adjust(ps['gap',],method='holm')
+        cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5),`p-value (adjusted)`=round(ps.Adj,5))
+    })
+    write.xlsx(l,'DiffFromMean.xlsx',row.names=TRUE)
+    l
 }
 
 stateEstSE <- function(x,st,data){
