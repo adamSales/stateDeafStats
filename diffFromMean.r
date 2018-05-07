@@ -1,107 +1,11 @@
-library(readr) ## read in the csvs faster
-                                        #library(survey)
-library(dplyr)
-source('../generalCode/cumMean.r')
-states <- read.csv('../data/acs5yr2016/states.csv')
-
-makeDes <- function(){
-
-## need: DEAR, attain, employment,PERNP, fulltime
-
-    sdat <- read_csv('../data/acs5yr2016/ss16pusa.csv')[,c('SERIALNO','DEAR','ST','AGEP','ADJINC','PERNP','SCHL','ESR','WKW','WKHP','PWGTP',paste0('PWGTP',1:80))]
-    for(nn in names(sdat)) if(is.character(sdat[[nn]])) sdat[[nn]] <- parse_integer(sdat[[nn]])
-    for(ll in letters[2:4]){
-        print(ll)
-        ndat <- read_csv(paste0('../data/acs5yr2016/ss16pus',ll,'.csv'))[,c('SERIALNO','DEAR','ST','AGEP','ADJINC','PERNP','SCHL','ESR','WKW','WKHP','PWGTP',paste0('PWGTP',1:80))]
-        for(nn in names(ndat)) if(is.character(ndat[[nn]])) ndat[[nn]] <- parse_integer(ndat[[nn]])
-        sdat <- rbind(sdat,ndat)
-        rm(ndat);gc()
-    }
-
-    hdat <- read_csv('../data/acs5yr2016/ss16husa.csv')[,c('SERIALNO','TYPE')]
-    for(ll in letters[2:4])
-        hdat <- rbind(hdat, read_csv(paste0('../data/acs5yr2016/ss16hus',ll,'.csv'))[,c('SERIALNO','TYPE')])
-
-    sdat$type <- hdat$TYPE[match(sdat$SERIALNO,hdat$SERIALNO)]; rm(hdat); gc()
-
-    sdat$adj <- sdat$ADJINC/1e6
-    sdat$PERNP <- sdat$PERNP*sdat$adj
-
-    sdat$state <- states$abb[match(sdat$ST,states$x)]
-
-    save(sdat,file='data/rankDataTot.RData')
-    sdat
-}
-
-makeVars <- function(sdat){
-    sdat <- sdat%>%filter(type!=2)%>%filter(AGEP<65)%>%filter(AGEP>=25)%>%
-        mutate(hs = SCHL>=16,
-               ba = SCHL>=21,
-               employed = ESR%in%c(1,2,4,5),
-               unemployed = ESR==3,
-               fulltime=(WKW==1 & WKHP>=35))
-#    sdat <- select(sdat,-ST,-AGEP,-ADJINC,-SCHL,-ESR,-WKW,-WKHP)
-
-    names(sdat) <- tolower(names(sdat))
-
-    sdat
-}
-
-svmean <- function(x,w,na.rm=TRUE){
-    w <- w/sum(w)
-    sum(x*w,na.rm=na.rm)
-}
-
-stateEst <- function(x,w,data,st,na.rm=TRUE){
-    data <- data[data$state==st,c(x,w,'dear')]
-    names(data) <- c('x','w','dear')
-    ## xO <- x[state!=st]
-    ## wO <- w[state!=st]
-    ## dearO <- dear[state!=st]
-
-    local <- with(data, list(
-#        overall=svmean(x,w),
-        deaf=svmean(x[dear==1],w[dear==1]),
-        hear=svmean(x[dear==2],w[dear==2])
-    ))
-    local <- within(local,gap <- deaf-hear)
-    return(unlist(local))
-    ## oth <- list(
-    ##     overall=svmean(xO,wO),
-    ##     deaf=svmean(xO[dearO==1],wO[dearO==1]),
-    ##     hear=svmean(xO[dearO==2],wO[dearO==2])
-    ## )
-    ## oth <- within(oth,gap <- deaf-hear)
-    ## c(unlist(local),diff=unlist(local)-unlist(oth))
-}
-
-tot1state <- function(x,st,data)
-    vapply(c('',1:80),
-           function(i) stateEst(x=x,w=paste0('pwgtp',i),data,st),
-           numeric(3))
-
-tot1var <- function(x,data)
-    vapply(c('DC',state.abb),function(st) tot1state(x,st,data),matrix(1.1,3,81))
-
-
-stateSEs <- function(t1v){
-    est <- t1v[,1,]
-    t1v <- t1v[,-1,]
-    dn <- dimnames(t1v)
-    out <- matrix(NA,nrow=dim(t1v)[3],ncol=dim(t1v)[1],dimnames=dn[c(3,1)])
-    for(vv in dn[[1]])
-        for(ss in dn[[3]])
-            out[ss,vv] <- sqrt(mean((t1v[vv,,ss]-est[vv,ss])^2)*4)
-    out
-}
 
 makeWeights <- function(){
-    deafWeights <- vapply(c('DC',state.abb),
+    deafWeights <- vapply(c('DC','PR',state.abb),
                           function(st)
                               colSums(sdat[sdat$state==st & sdat$dear==1,paste0('pwgtp',c('',1:80))]),
                           numeric(81))
     deafWeights <- sweep(deafWeights,1,rowSums(deafWeights),'/')
-    hearWeights <- vapply(c('DC',state.abb),
+    hearWeights <- vapply(c('DC','PR',state.abb),
                           function(st)
                               colSums(sdat[sdat$state==st & sdat$dear==2,paste0('pwgtp',c('',1:80))]),
                           numeric(81))
@@ -166,20 +70,9 @@ est1var <- function(x,sdat){
 complete <- function(x){
     t1v <- tot1var(x,sdat)
     diff <- stateDiff(t1v)
-    ps <- vapply(c('DC',state.abb),function(ss) stateDiffP(t1v,ss),numeric(3))
-    write.csv(cbind(difference=diff['deaf',],`p-value`=round(ps['deaf',],5)),paste0(x,'deafDiffFromMean.csv'))
-    write.csv(cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5)),paste0(x,'gapDiffFromMean.csv'))
-    pdf(paste0(x,'deafDiffFromMean.pdf'),width=9,height=6)
-    barplot(diff['deaf',order(diff['deaf',])],las=2,main=paste('State Differences in',toupper(x),'from National Level: Deaf Rate'))
-    deafStars <- ifelse(ps['deaf',]<0.05,'*','')#,ifelse(ps['deaf',]<0.01,'**',ifelse(ps['deaf',]<0.05,'*','')))
-    text(seq(.7,by=1.2,length=51),ifelse(sort(diff['deaf',])< 0,0.002,-0.002),deafStars[order(diff['deaf',])])
-    dev.off()
-
-    pdf(paste0(x,'gapDiffFromMean.pdf'),,width=9,height=6)
-    barplot(diff['gap',order(diff['gap',])],las=2,main=paste('State Differences in',toupper(x),'from National Level: Deaf-Hearing Gap'))
-    gapStars <- ifelse(ps['gap',]<0.05,'*','')#**',ifelse(ps['gap',]<0.01,'**',ifelse(ps['gap',]<0.05,'*','')))
-    text(seq(.7,by=1.2,length=51),ifelse(sort(diff['gap',])< 0,0.002,-0.002),gapStars[order(diff['gap',])])
-    dev.off()
+    ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss),numeric(3))
+    ps.Adj <- p.adjust(ps,method='holm')
+    cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5),`p-value (adjusted)`=round(ps.Adj['gap',],5))
 }
 
 stateEstSE <- function(x,st,data){
