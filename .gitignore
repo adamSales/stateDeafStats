@@ -46,3 +46,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 ~$HS.BA.Unemployment.Employment.byState.xlsx
+*.Rhistory
+diffFromMean.r~
+makeDes.r~
