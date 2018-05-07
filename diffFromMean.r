@@ -10,28 +10,28 @@ makeWeights <- function(){
                               colSums(sdat[sdat$state==st & sdat$dear==2,paste0('pwgtp',c('',1:80))]),
                           numeric(81))
     hearWeights <- sweep(hearWeights,1,rowSums(hearWeights),'/')
-    list(deafWeights,hearWeights)
+    list(deaf=deafWeights,hear=hearWeights)
 }
 
-stateEstDiff1 <- function(t1v,deaf,ss){
+stateEstDiff1 <- function(t1v,deaf,ss,weights){
     dn <- dimnames(t1v)
     vv <- ifelse(deaf,'deaf','hear')
-    if(deaf) weights <- deafWeights[,-which(colnames(deafWeights)==ss)]
-    else weights <- hearWeights[,-which(colnames(hearWeights)==ss)]
+    if(deaf) wghts <- weights$deaf[,-which(colnames(weights$deaf)==ss)]
+    else wghts <- weights$hear[,-which(colnames(weights$hear)==ss)]
     stEsts <- t1v[vv,,ss]
     restEsts <- t1v[vv,,-which(dn[[3]]==ss)]
 
     restEsts <- vapply(1:nrow(restEsts),
-                       function(ww) sum(restEsts[ww,]*weights[paste0('pwgtp',rownames(restEsts)[ww]),]),1)
+                       function(ww) sum(restEsts[ww,]*wghts[paste0('pwgtp',rownames(restEsts)[ww]),]),1)
 
     list(stEsts,restEsts)
 }
 
 pval <- function(mu,sig) 2*pnorm(-abs(mu/sig))
 
-stateDiffP <- function(t1v,ss){
-    df <- stateEstDiff1(t1v,TRUE,ss)
-    hr <- stateEstDiff1(t1v,FALSE,ss)
+stateDiffP <- function(t1v,ss,weights){
+    df <- stateEstDiff1(t1v,TRUE,ss,weights)
+    hr <- stateEstDiff1(t1v,FALSE,ss,weights)
     deafEst <- df[[1]][1]-df[[2]][1]
     deafSE <- sqrt(mean((df[[1]][-1]-df[[2]][-1]-deafEst)^2)*4)
     hearEst <- hr[[1]][1]-hr[[2]][1]
@@ -41,9 +41,9 @@ stateDiffP <- function(t1v,ss){
     c(deaf=pval(deafEst,deafSE),hear=pval(hearEst,hearSE),gap=pval(gapEst,gapSE))
 }
 
-stateDiff <- function(t1v){
-    overall <- c(deaf=sum(deafWeights[1,]*t1v['deaf',1,]),
-                 hear=sum(hearWeights[1,]*t1v['hear',1,]))
+stateDiff <- function(t1v,weights){
+    overall <- c(deaf=sum(weights$deaf[1,]*t1v['deaf',1,]),
+                 hear=sum(weights$hear[1,]*t1v['hear',1,]))
     overall['gap'] <- overall['deaf']-overall['hear']
 
     sweep(t1v[,1,],1,overall,'-')
@@ -68,8 +68,9 @@ est1var <- function(x,sdat){
 
 ### code to make first figure:
 complete <- function(x){
+    weights <- makeWeights()
     t1v <- tot1var(x,sdat)
-    diff <- stateDiff(t1v)
+    diff <- stateDiff(t1v,weights)
     ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss),numeric(3))
     ps.Adj <- p.adjust(ps,method='holm')
     cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5),`p-value (adjusted)`=round(ps.Adj['gap',],5))
