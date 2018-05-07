@@ -49,3 +49,6 @@ Temporary Items
 *.Rhistory
 diffFromMean.r~
 makeDes.r~
+trendDat.RData
+trends.r~
+*.r~

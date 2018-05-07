@@ -2,7 +2,7 @@ library(openxlsx)
 library(readr) ## read in the csvs faster
                                         #library(survey)
 library(sandwich)
-library(coeftest)
+library(lmtest)
 library(dplyr)
 states <- read.csv('states.csv')
 
@@ -103,6 +103,23 @@ trendStateVar <- function(ss){
 stateTrends <- function(x,dat){
     bys <- byYearState(dat,x)
     bys.splt <- split(bys,bys$state)
-    sapply(bys.splt,trendStateVar)
+    out <- sapply(bys.splt,trendStateVar)
+    out <- as.data.frame(t(out))
+    out[['p.adj']] <- p.adjust(out[['Pr(>|t|)']],'holm')
+    out[['p.fdr']] <- p.adjust(out[['Pr(>|t|)']],'fdr')
+    out$Estimate <- out$Estimate*100
+    out[['Std. Error']] <- out[['Std. Error']]*100
+    out
 }
+
+allTrends <- function(dat){
+    l <- list(
+        hs=stateTrends('hs',dat),
+        ba=stateTrends('ba',dat),
+        employment=stateTrends('employed',dat))
+    write.xlsx(l,'gapTrends.xlsx',row.names=TRUE)
+}
+
+
+
 
