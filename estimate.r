@@ -111,5 +111,6 @@ savedData <- function(){
     assign('sdatPR',get(pr))
     sdat <- rbind(sdatUS,sdatPR); rm(sdatUS,sdatPR); gc()
     sdat <- makeVars(sdat)
-    makeEstimates(sdat)
+    sdat
 }
+
