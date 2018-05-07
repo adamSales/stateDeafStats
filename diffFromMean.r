@@ -68,13 +68,15 @@ est1var <- function(x,sdat){
 ### code to make first figure:
 complete <- function(sdat){
     weights <- makeWeights(sdat)
-    l <- lapply(c('hs','ba','employed'),function(x){
+    vars <- c('hs','ba','employed')
+    l <- lapply(vars,function(x){
         t1v <- tot1var(x,sdat,us=FALSE)
         diff <- stateDiff(t1v,weights)
         ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss,weights),numeric(3))
         ps.Adj <- p.adjust(ps['gap',],method='holm')
         cbind(difference=diff['gap',],`p-value`=round(ps['gap',],5),`p-value (adjusted)`=round(ps.Adj,5))
     })
+    names(l) <- vars
     write.xlsx(l,'DiffFromMean.xlsx',row.names=TRUE)
     l
 }
