@@ -1,5 +1,5 @@
 
-makeWeights <- function(){
+makeWeights <- function(sdat){
     deafWeights <- vapply(c('DC','PR',state.abb),
                           function(st)
                               colSums(sdat[sdat$state==st & sdat$dear==1,paste0('pwgtp',c('',1:80))]),
@@ -67,8 +67,8 @@ est1var <- function(x,sdat){
 
 
 ### code to make first figure:
-complete <- function(x){
-    weights <- makeWeights()
+complete <- function(x,sdat){
+    weights <- makeWeights(sdat)
     t1v <- tot1var(x,sdat)
     diff <- stateDiff(t1v,weights)
     ps <- vapply(c('DC','PR',state.abb),function(ss) stateDiffP(t1v,ss),numeric(3))
