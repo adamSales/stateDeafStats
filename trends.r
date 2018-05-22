@@ -94,6 +94,10 @@ byYearState <- function(dat,x){
     out
 }
 
+byYearState2 <- function(dat,x){
+    dat%>%group_by(state,year)%>%
+        do(stateYearEst(.,x))
+
 trendStateVar <- function(ss){
     ss$year <- as.numeric(ss$year)
     mod <- lm(est~year,weights=1/vvv,data=ss)
@@ -111,6 +115,9 @@ stateTrends <- function(x,dat){
     out[['Std. Error']] <- out[['Std. Error']]*100
     out
 }
+
+stateTrends2 <- function(x,dat){
+    dat%>%group_by(
 
 allTrends <- function(dat){
     l <- list(

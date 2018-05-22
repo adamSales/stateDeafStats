@@ -17,6 +17,7 @@ stateEstDiff1 <- function(t1v,deaf,ss,weights){
     vv <- ifelse(deaf,'deaf','hear')
     if(deaf) wghts <- weights$deaf[,-which(colnames(weights$deaf)==ss)]
     else wghts <- weights$hear[,-which(colnames(weights$hear)==ss)]
+    wghts <- sweep(wghts,1,rowSums(wghts),'/')
     stEsts <- t1v[vv,,ss]
     restEsts <- t1v[vv,,-which(dn[[3]]==ss)]
 

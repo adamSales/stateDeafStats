@@ -1,0 +1,22 @@
+(list "readr" '(("..." . "") (".default" . "col_guess()")) '("..." ".default"))
+ [1] "tr"                   "trace"                "traceback"           
+ [4] "tracemem"             "traceOff"             "traceOn"             
+ [7] "tracingState"         "trans3d"              "transform"           
+[10] "transform.data.frame" "transform.default"    "transmute"           
+[13] "transmute_"           "transmute_all"        "transmute_at"        
+[16] "transmute_if"         "treering"             "trees"               
+[19] "tribble"              "trigamma"             "trimws"              
+[22] "trunc"                "trunc.Date"           "trunc.POSIXt"        
+[25] "trunc_mat"            "truncate"             "truncate.connection" 
+[28] "try"                  "tryCatch"             "tryNew"              
+[1] "trac"         "trace"        "traceback"    "tracemem"     "traceOff"    
+[6] "traceOn"      "tracingState"
+[1] "trace"     "trace"     "traceback" "tracemem"  "traceOff"  "traceOn"  
+(list "base" '(("x" . "NULL") ("max.lines" . "getOption(\"deparse.max.lines\")")) '("x" "max.lines"))
+4: stop("no lines available in input")
+3: read.table(file = file, header = header, sep = sep, quote = quote, 
+       dec = dec, fill = fill, comment.char = comment.char, ...)
+2: read.csv(paste0("../../data/acs/historical/ss", year, "h", part, 
+       ".csv")) at trends.r#21
+1: makeDat()
+(list "base" '(("file" . "NULL") ("append" . "FALSE") ("type" . "c(\"output\", \"message\")") ("split" . "FALSE")) '("file" "append" "type" "split"))
